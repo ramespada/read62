@@ -2909,12 +2909,12 @@ c *** external iargc
 c
 c --- The following is for any system without a command line routine
 c --- and is also used as a default
-      cdeflt=ctext
+c      cdeflt=ctext
 c
 c ------------------
 c --- Lahey compiler
 c ------------------
-      call getcl(ctext)
+c      call getcl(ctext)
 c
 c ----------------------
 c --- COMPAQ DF compiler
@@ -2951,7 +2951,7 @@ c *** endif
 c
 c
 c --- If no command line arguments, use default
-      if(ctext(1:1).eq.' ')ctext=cdeflt
+c     if(ctext(1:1).eq.' ')ctext=cdeflt
 
       return
       end

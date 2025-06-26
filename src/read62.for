@@ -2857,7 +2857,7 @@ c --- (DATETM provides RCPU = 0.0 on the PC)
 
 c --- Report current date
       rdate12=rdate2(1:10)//'  '
-      call FMT_DATE(io6,'MM-DD-YYYY','DD-MMM-YYYY',rdate12)
+      call FMT_DATE(io6,'MM-DD-YYYY  ','DD-MMM-YYYY  ',rdate12)
       write(io6,1402)rtime2,rdate12,NINT(delt),NINT(rcpu)
 1402  format(//2x,'End of run -- Clock time: ',a8/
      1         2x,'                    Date: ',a12//
