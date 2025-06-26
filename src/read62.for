@@ -2,7 +2,7 @@ c----------------------------------------------------------------------
 c --- READ62 -- TD-6201 Upper Air Data Preprocessor
 c----------------------------------------------------------------------
 c
-c --- READ62   Version: 5.661    Level: 110225                    MAIN
+c --- READ62   Version: 5.67     Level: 110225                    MAIN
 c
 c     Copyright (c) 1995-2011 by Exponent, Inc.
 c
@@ -17,6 +17,9 @@ c --- Model Change Bulletin Updates Included:           MCB-A (040716)
 c----------------------------------------------------------------------
 c
 c --- UPDATES
+c --- V 5.66                ====> V 5.67                (R. Espada)
+c     - Update READ62 to support IGRA files.
+c       Modified: WRHD, RDSTA
 c
 c --- V 5.66  Level 100621  ====> V 5.661  Level 110225 (D.Strimaitis)
 c     - Updated CALUTILS.FOR to version v2.58 (110225)
@@ -387,7 +390,7 @@ c --- STATION common block
 
 c----------------------------------------------------------------------
 c --- BRING IN CALPUFF SYSTEM UTILITY SUBROUTINES
-      include 'calutils.for'
+     include 'calutils.for'
 c----------------------------------------------------------------------
 
 c-----------------------------------------------------------------------
@@ -862,7 +865,7 @@ c --- Check that ending date is after starting date
       endif
 
 c --- Check for an invalid value of JDAT (input data type)
-      if(jdat.NE.1 .AND. jdat.NE.2)then
+      if(jdat.NE.1 .AND. jdat.NE.2 .AND. jdat.NE.3)then
          write(io6,*)
          write(io6,*) 'QAINP:  Error in Input Group 1'
          write(io6,*) 'JDAT out of range       = ',jdat
@@ -1251,6 +1254,57 @@ c ---   use in missing value checks
         do ii=1,numlev
            ws(ii)=xws1(ii)
         enddo
+
+      ELSEIF (JDAT.EQ.3) THEN
+      !READ IGRA FORMAT -----------------------
+8099    continue
+        second=0
+        !Read sounding header:
+        read(io8,'(13x,i4,1x,i2,1x,i2,1x,i2,1x,6x,i3,36x)') 
+     > year, month, day, hour, numlev
+
+        mlev=numlev                                                  !Save original number of levels for output
+        if( numlev .gt. mxlev ) numlev = mxlev                       !Max number of levels to read is mxlev
+        if( numlev .EQ. 0     ) goto 8099                            !Get next sounding now if there are no data records
+ 
+        !Read sounding data:
+        read(io8,'(9x,f6.0,2x,f4.0,2x,f4.0,1x,12x,i5,1x,i5)')
+     > (xpres(i),xheight(i),xtemp(i),xwd(i),iws1(i),i=1,numlev)
+
+        do i=1,(mlev-numlev)
+           read(io8,'(a)') junk                                      !Drop extra levels
+        enddo
+
+        ic = 1
+        pres(1)   = xpres(1)/100.
+        height(1) = xheight(1)
+        temp(1)   = xtemp(1)/10
+        wd(1)     = xwd(1)
+        ws1(1)    = iws1(1)/10
+        do i=2,numlev
+          if ( xpres(i)/100. .lt. pres(ic) ) then                    !This ensures pressure to decrease monotonically
+              ic = ic + 1
+              pres(ic)   = xpres(i)/100.
+              height(ic) = xheight(i)
+              temp(ic)   = xtemp(i)/10
+              wd(ic)     = xwd(i)
+              ws1(ic)    = iws1(i)/10.
+          end if
+        end do
+
+        !check for missing values:
+        do ii=1,numlev
+           if ( height(ii).lt.   0.0 ) height(ii)= 9999. 
+           if ( temp(ii)  .lt.  -300 ) temp(ii)  = 999.9 
+           if ( wd(ii)    .lt.   0.0 ) wd(ii)    = 999   
+           if ( ws1(ii)   .lt.   0.0 ) xws1(ii)  = 999.9 
+           if ( ws1(ii)   .gt. -99.9 ) xws1(ii)  = ws1(ii)
+           ! ---   Compute integer equivalent (WS) of real wind speed (XWS1) -- for
+           ! ---   use in missing value checks
+           ws(ii)=xws1(ii)
+        end do
+      !----------------------------------------
+
       ENDIF
 C                                                                       R6201380
 C     IF CONTINUATION OF LAST SOUNDING, IGNORE AND READ NEXT SOUNDING   R6201390
@@ -2680,6 +2734,21 @@ c ---       Use WMO ID
          write(io6,*)'            WBAN ID:      ',iwban
          write(io6,*)'             WMO ID:      ',iwmo
          write(io6,*)
+
+      elseif(jdat .EQ. 3) then !IGRA format
+
+        READ(io8,'(5x,i7,43x,f7.0,1x,f7.0)') iwmo, xlat, xlon
+
+         write(stnid,'(i8)') iwmo 
+         iwban=iwmo
+         xlat=xlat/10000
+         xlon=xlon/1000
+
+         write(io6,*)
+         write(io6,*)'IGRA Station ID used:     ',stnid
+         write(io6,*)'             WBAN ID:     ',iwban
+         write(io6,*)'              WMO ID:     ',iwmo
+         write(io6,*)'             LAT,LON:     ',xlat,xlon
 
       else
          write(io6,*)
